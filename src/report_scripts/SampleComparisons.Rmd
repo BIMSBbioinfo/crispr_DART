@@ -5,12 +5,13 @@ params:
   @PARAMS_TARGET_NAME@: 
 ---
 
-Read config.yml for the locations of sample sheet, pipeline output and cut sites coordinates. 
 ```{r, child="_settings.Rmd"}
+#Read config.yml for the locations of sample sheet, pipeline output and cut sites coordinates. 
 ```
 
-Subset sample sheet for those that match the target region of interest
 ```{r}
+#Subset sample sheet for those that match the target region of interest
+
 targetName <- params$target_name
 sampleSheet <- sampleSheet[target_name == targetName]
 targetRegion <- as(sampleSheet[target_name == targetName]$target_region[1], 'GRanges')
@@ -160,11 +161,6 @@ plots <- lapply(unique(results$comparison), function(x){
               subtitle = paste0("Indel type: ", indelType)) + 
       theme_bw() 
     print(p)
-    
-    ## print the 'difference' value for each base position as a bigwig file
-    #outfile <- file.path(workdir, paste0(ampliconName, '.comparison.', 
-     #                                    x, '.', indelType,  '.bedgraph'))
-    # TODO: print big
     return(p)
   })
   names(plots) <- unique(results$indelType)
@@ -196,11 +192,11 @@ for (comparison in names(plots)) {
 
 # Comparison of indel frequencies
 
-
 ## Deletion frequencies 
 
-First, get deletions and the coverage values for each deletion
 ```{r}
+# First, get deletions and the coverage values for each deletion
+
 samples <- unique(c(comp$case_samples, comp$control_samples))
 
 deletions <- do.call(rbind, lapply(getIndels(pipeline_output_dir, samples), 
@@ -243,8 +239,9 @@ deletions$freq <- deletions$ReadSupport/deletions$coverage
 ```
 
 
-Make plots to compare case versus control samples 
 ```{r compare_del_freq}
+# Make plots to compare case versus control samples 
+
 #dt: deletions/insertions table
 #minReadSupport mininum number of reads in sum of the samples
 #minFreq minimum frequency in sum of the samples
@@ -399,8 +396,9 @@ insertions$freq <- insertions$ReadSupport/insertions$coverage
 insertions$name <- paste(insertions$seqname, insertions$start, insertions$insertedSequence, sep = ":")
 ```
 
-Make plots to compare case versus control samples 
 ```{r compare_ins_freq}
+# Make plots to compare case versus control samples 
+
 plots <- pbapply::pblapply(unique(comp$comparison), function(cmp) {
   caseSample <- comp[comparison == cmp]$case_samples
   controlSample <- comp[comparison == cmp]$control_samples

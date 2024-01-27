@@ -8,8 +8,9 @@ params:
 ```{r, child="_settings.Rmd"}
 ```
 
-Subset sample sheet for those that match the target region of interest
 ```{r}
+#Subset sample sheet for those that match the target region of interest
+
 targetName <- params$target_name
 sampleSheet <- sampleSheet[target_name == targetName]
 targetRegion <- as(sampleSheet[target_name == targetName]$target_region[1], 'GRanges')

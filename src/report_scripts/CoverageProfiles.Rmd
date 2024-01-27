@@ -73,16 +73,17 @@ plots <- sapply(simplify = F, USE.NAMES = T,
 ```
 
 
-# Plots
+# Plots {.tabset}
 
-```{r printplots}
-out = NULL
+```{r printplots, results = 'asis'}
 for (target_name in names(plots)) {
-  out = c(out, knitr::knit_expand(text='## {{target_name}} \n\n'))
+  cat('## ',target_name," {.tabset} \n\n")
   for(sample_name in names(plots[[target_name]])) {
-    p <- ggplotly(plots[[target_name]][[sample_name]], height = 600)
-    out = c(out, knitr::knit_expand(text='### {{sample_name}} \n\n {{p}} \n\n'))
-  }}
+    cat("### ",sample_name,"\n\n")
+    print(plots[[target_name]][[sample_name]])
+    cat("\n\n")
+  }
+  cat("\n\n")
+}
 ```
 
-`r paste(knit(text = out), collapse = '\n')`
