@@ -22,7 +22,6 @@
 Snakefile for crispr-DART pipeline
 """
 import sys
-#print(sys.version)
 import os
 import yaml
 import pandas as pd
@@ -31,10 +30,6 @@ from itertools import chain
 
 # tools
 RSCRIPT = config['tools']['Rscript']
-JAVA = config['tools']['java']['path']
-JAVA_MEM = config['tools']['java']['mem']
-JAVA_THREADS = config['tools']['java']['threads']
-GATK = config['tools']['gatk']
 
 # input locations
 SRC_DIR = os.path.abspath(config['source-dir'])
@@ -55,7 +50,6 @@ MAPPED_READS_DIR  = os.path.join(OUTPUT_DIR, 'aln')
 INDELS_DIR      = os.path.join(OUTPUT_DIR, 'indels')
 BBMAP_INDEX_DIR   = os.path.join(OUTPUT_DIR, 'bbmap_indexes')
 REPORT_DIR        = os.path.join(OUTPUT_DIR, 'reports')
-GATK_DIR          = os.path.join(OUTPUT_DIR, 'gatk')
 
 #other parameters
 nodeN = config['nodeN']
@@ -63,7 +57,6 @@ nodeN = config['nodeN']
 ## Load sample sheet
 SAMPLE_SHEET = pd.read_csv(SAMPLE_SHEET_FILE)
 TARGET_NAMES = list(set(SAMPLE_SHEET['target_name'].tolist()))
-#print(TARGET_NAMES)
 # get unique rows for only considering sample id/name/read files
 # (one sample may contain multiple target region/name fields, but we
 # don't need to process the same read files for each target region)
@@ -71,7 +64,6 @@ SAMPLE_SHEET_tmp = SAMPLE_SHEET[['sample_name', 'reads', 'reads2', 'tech']]
 SAMPLE_SHEET = SAMPLE_SHEET_tmp.drop_duplicates()
 
 SAMPLES = SAMPLE_SHEET['sample_name'].tolist()
-#print(SAMPLES)
 
 # look up values from sample sheet (assuming it is a data frame) for multiple fields
 def lookup(column, predicate, fields=[]):
@@ -116,21 +108,16 @@ def map_input(wc):
 
 rule all:
     input:
-        #expand(os.path.join(FASTQC_DIR, "{sample}.fastqc.done"), sample = SAMPLES),
-        #expand(os.path.join(MAPPED_READS_DIR, "{sample}.bam.bai"), sample = SAMPLES),
-        #expand(os.path.join(GATK_DIR, "{sample}.indels.realigned.bam"), sample = SAMPLES),
-        expand(os.path.join(OUTPUT_DIR,  "aln_merged", "{sample}.bam"), sample = SAMPLES),
-        #expand(os.path.join(OUTPUT_DIR, "SAMTOOLS", "{sample}.samtools.stats.txt"), sample = SAMPLES),
-        #os.path.join(OUTPUT_DIR, "multiqc", "multiqc_report.html"),
-        #expand(os.path.join(INDELS_DIR, "{sample}", "{sample}.sgRNA_efficiency.tsv"), sample = SAMPLES),
+        expand(os.path.join(FASTQC_DIR, "{sample}.fastqc.done"), sample = SAMPLES),
+        expand(os.path.join(MAPPED_READS_DIR, "{sample}", "{sample}.bam.bai"), sample = SAMPLES),
+        expand(os.path.join(OUTPUT_DIR, "SAMTOOLS", "{sample}.samtools.stats.txt"), sample = SAMPLES),
+        os.path.join(OUTPUT_DIR, "multiqc", "multiqc_report.html"),
+        expand(os.path.join(INDELS_DIR, "{sample}", "{sample}.sgRNA_efficiency.tsv"), sample = SAMPLES),
         os.path.join(REPORT_DIR, "index.html"),
-        #expand(os.path.join(REPORT_DIR, "{target}.CoverageProfiles.html"), target = TARGET_NAMES),
-        #expand(os.path.join(REPORT_DIR, "{target}.SampleComparisons.html"), target = TARGET_NAMES),
-        #expand(os.path.join(REPORT_DIR, "{target}.sgRNA_efficiency_stats.html"), target = TARGET_NAMES),
-        #expand(os.path.join(REPORT_DIR, "{target}.Indel_Diversity.html"), target = TARGET_NAMES)
-        #get_output_file_list(INDELS_DIR, "freeBayes_variants.vcf"),
-        #get_output_file_list(INDELS_DIR, "freeBayes_deletions.bed"),
-        #get_output_file_list(INDELS_DIR, "freeBayes_insertions.bed"),
+        expand(os.path.join(REPORT_DIR, "{target}.CoverageProfiles.html"), target = TARGET_NAMES),
+        expand(os.path.join(REPORT_DIR, "{target}.SampleComparisons.html"), target = TARGET_NAMES),
+        expand(os.path.join(REPORT_DIR, "{target}.sgRNA_efficiency_stats.html"), target = TARGET_NAMES),
+        expand(os.path.join(REPORT_DIR, "{target}.Indel_Diversity.html"), target = TARGET_NAMES)
 
 #notice that get_amplicon_file function for 'fasta' should only be used once.
 #Other rules that need the amplicon fasta sequence as input should use :
@@ -188,7 +175,7 @@ rule trim_galore_se:
 
 rule bbmap_indexgenome:
     input: os.path.join(FASTA_DIR, os.path.basename(REFERENCE_FASTA))
-    output: os.path.join(BBMAP_INDEX_DIR, re.sub("\.fa(sta)?$", "", os.path.basename(REFERENCE_FASTA)))
+    output: directory(os.path.join(BBMAP_INDEX_DIR, re.sub("\.fa(sta)?$", "", os.path.basename(REFERENCE_FASTA))))
     log: os.path.join(LOG_DIR, ".".join(["bbmap_index", os.path.basename(REFERENCE_FASTA), "log"]))
     shell: "bbmap.sh t=10 ref={input} path={output} > {log} 2>&1"
 
@@ -211,19 +198,8 @@ rule bbmap_map:
             shell("{params.aligner} {params.memory} {params.options} keepnames=t path={input.ref} in1={input.reads[0]} in2={input.reads[1]} outm={output}> {log} 2>&1")
 
 
-# GATK requires read groups, so here we add some dummy read group information to the bam files
-rule samtools_addReadGroups:
-    input: os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.sam")
-    output: os.path.join(MAPPED_READS_DIR, "{sample}", "{sample}.sam_withreadgroups")
-    log: os.path.join(LOG_DIR, "SAMTOOLS", "samtools_addReadGroups.{sample}.log")
-    shell:
-        """
-        samtools addreplacerg -m overwrite_all -o {output} -r ID:crips_dart -r PL:illumina -r SM:{wildcards.sample} {input} > {log} 2>&1
-        rm {input}
-        """
-
 rule samtools_sam2bam:
-    input: os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.sam_withreadgroups")
+    input: os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.sam") #os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.sam_withreadgroups")
     output: os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.bam")
     log: os.path.join(LOG_DIR, "SAMTOOLS", "samtools_sam2bam.{sample}.log")
     shell:
@@ -239,85 +215,10 @@ rule samtools_indexbam:
     shell: "samtools index {input} > {log} 2>&1"
 
 
-# split the bam file into two: First contains only reads alignments with indels
-# second contains alignments without indels
-rule split_bam_by_indels:
-    input:
-        bamFile = os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.bam"),
-        bamIndex = os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.bam.bai")
-    output:
-        os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam"),
-        os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam.bai"),
-        os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.without_indels.bam"),
-        os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.without_indels.bam.bai"),
-    params:
-        script = os.path.join(SRC_DIR, "src", "split_bam_by_indels.R"),
-        tech = lambda wildcards: lookup('sample_name', wildcards.sample, ['tech'])[0],
-        output_dir = os.path.join(OUTPUT_DIR, "aln_split_by_indels")
-    log: os.path.join(LOG_DIR, "split_bam_by_indels.{sample}.log")
-    shell: "{RSCRIPT} {params.script} {input.bamFile} {wildcards.sample} {params.output_dir} > {log} 2>&1"
-
-
-# we need an interval file that tells gatk to correct indels within those intervals
-# we provide the target_region that is available
-rule get_gatk_realigner_intervals:
-    input:
-        ref = os.path.join(FASTA_DIR, os.path.basename(REFERENCE_FASTA)),
-        ref_index = os.path.join(FASTA_DIR, ".".join([os.path.basename(REFERENCE_FASTA), 'fai'])),
-        ref_dict = os.path.join(FASTA_DIR, ".".join([os.path.basename(REFERENCE_FASTA).replace(".fa", ""), 'dict'])),
-        bamIndex = os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam.bai"),
-        bamFile = os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam")
-    output:
-        os.path.join(GATK_DIR, "{sample}.gatk_realigner.intervals")
-    log: os.path.join(LOG_DIR, "GATK", "gatk_realigner_target_creator.{sample}.log")
-    shell: "{JAVA} {JAVA_MEM} {JAVA_THREADS} -jar {GATK} -T RealignerTargetCreator --maxIntervalSize 10000 -R {input.ref} -I {input.bamFile} -o {output} > {log} 2>&1"
-
-# only consider realigner intervals that overlap target region
-rule subset_gatk_realigner_intervals:
-    input:
-        os.path.join(GATK_DIR, "{sample}.gatk_realigner.intervals")
-    output:
-        os.path.join(GATK_DIR, "{sample}.gatk_realigner.target.intervals")
-    params:
-        script = os.path.join(SRC_DIR, "src", "subset_gatk_realigner_intervals.R"),
-    log: os.path.join(LOG_DIR, "GATK", "subset_gatk_realigner_intervals.{sample}.log")
-    shell: "{RSCRIPT} {params.script} {SAMPLE_SHEET_FILE} {wildcards.sample} {input} > {log} 2>&1"
-
-
-
-rule gatk_indelRealigner:
-    input:
-        ref = os.path.join(FASTA_DIR, os.path.basename(REFERENCE_FASTA)),
-        ref_index = os.path.join(FASTA_DIR, ".".join([os.path.basename(REFERENCE_FASTA), 'fai'])),
-        ref_dict = os.path.join(FASTA_DIR, ".".join([os.path.basename(REFERENCE_FASTA).replace(".fa", ""), 'dict'])),
-        bamIndex = os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam.bai"),
-        bamFile = os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.with_indels.bam"),
-        intervals = os.path.join(GATK_DIR, "{sample}.gatk_realigner.target.intervals")
-    output:
-        bam = os.path.join(GATK_DIR, "{sample}.indels.realigned.bam"),
-        bai = os.path.join(GATK_DIR, "{sample}.indels.realigned.bai")
-    log: os.path.join(LOG_DIR, "GATK", "gatk_realigner.{sample}.log")
-    shell: "{JAVA} {JAVA_MEM} {JAVA_THREADS} -jar {GATK} -T IndelRealigner -maxReads 1000000 -R {input.ref} -I {input.bamFile} -targetIntervals {input.intervals} -o {output.bam} > {log} 2>&1"
-
-# merge bam files that were split for realigning the indels
-# merge the realigned bam file with the bam file containing no indels.
-rule merge_bam:
-    input:
-        bam1 = os.path.join(GATK_DIR, "{sample}.indels.realigned.bam"),
-        bam2 = os.path.join(OUTPUT_DIR, "aln_split_by_indels", "{sample}.without_indels.bam")
-    output:
-        bam=os.path.join(OUTPUT_DIR, "aln_merged", "{sample}.bam"),
-        bai=os.path.join(OUTPUT_DIR, "aln_merged", "{sample}.bam.bai"),
-    log: os.path.join(LOG_DIR, "SAMTOOLS", "merge.realigned.{sample}.log")
-    shell:
-        """
-        samtools merge {output.bam} {input.bam1} {input.bam2} 2> {log} 2>&1
-        samtools index {output.bam}
-        """
-
 rule samtools_stats:
     input:
-        bamfile = os.path.join(OUTPUT_DIR, "aln_merged", "{sample}.bam"),
+        #bamfile = os.path.join(OUTPUT_DIR, "aln_merged", "{sample}.bam"),
+        bamfile=os.path.join(MAPPED_READS_DIR,  "{sample}", "{sample}.bam"),
         ref = os.path.join(FASTA_DIR, os.path.basename(REFERENCE_FASTA))
     output: os.path.join(OUTPUT_DIR, "SAMTOOLS", "{sample}.samtools.stats.txt")
     log: os.path.join(LOG_DIR, "SAMTOOLS", "samtools_stats.{sample}.log")
@@ -326,7 +227,6 @@ rule samtools_stats:
 rule multiqc:
     input:
         fastqc = expand(os.path.join(FASTQC_DIR, "{sample}.fastqc.done"), sample = SAMPLES),
-        trim = expand(os.path.join(TRIMMED_READS_DIR, "{sample}.fastq.gz"), sample = SAMPLES),
         samtools = expand(os.path.join(OUTPUT_DIR, "SAMTOOLS", "{sample}.samtools.stats.txt"), sample = SAMPLES)
     output:
         os.path.join(OUTPUT_DIR, "multiqc", "multiqc_report.html")
@@ -336,40 +236,10 @@ rule multiqc:
     log: os.path.join(LOG_DIR, 'multiqc.log')
     shell: "multiqc --force -o {params.output_folder} {params.analysis_folder} > {log} 2>&1"
 
-# runs freebayes tool on top of a BAM file and creates a VCF file containing variants
-# we assume the sequences may come from multiple individuals and suppress snps.
-# we apply a frequency cut-off of 0.1%
-# rule getFreeBayesVariants:
-#     input:
-#         ref = lambda wildcards:  os.path.join(FASTA_DIR, ''.join([wildcards.amplicon, ".fasta"])),
-#         bamIndex = os.path.join(GATK_DIR, "{amplicon}", "{sample}.realigned.bai"),
-#         bamFile = os.path.join(GATK_DIR, "{amplicon}", "{sample}.realigned.bam")
-#     output:
-#         os.path.join(INDELS_DIR, "{amplicon}", "{sample}.freeBayes_variants.vcf")
-#     log: os.path.join(LOG_DIR, "{amplicon}", "getFreeBayesVariants.{sample}.log")
-#     shell: "freebayes -f {input.ref} -F 0.001 -C 1 --no-snps --use-duplicate-reads --pooled-continuous {input.bamFile} > {output} 2> {log}"
-#
-# #convert VCF output from freebayes to BED files
-# rule vcf2bed:
-#     input: os.path.join(INDELS_DIR, "{amplicon}", "{sample}.freeBayes_variants.vcf")
-#     output:
-#         deletions = os.path.join(INDELS_DIR, "{amplicon}", "{sample}.freeBayes_deletions.bed"),
-#         insertions = os.path.join(INDELS_DIR, "{amplicon}", "{sample}.freeBayes_insertions.bed")
-#     log:
-#         deletions = os.path.join(LOG_DIR, "{amplicon}", "vcf2bed.deletions.{sample}.log"),
-#         insertions = os.path.join(LOG_DIR, "{amplicon}", "vcf2bed.insertions.{sample}.log")
-#     shell:
-#         """
-#         cut -f 1,2,3,4,5,6,7,8 {input} | vcf2bed --deletions > {output.deletions} 2> {log.deletions}
-#         cut -f 1,2,3,4,5,6,7,8 {input} | vcf2bed --insertions > {output.insertions} 2> {log.insertions}
-#         """
-
 rule getIndelStats:
     input:
-        bamIndex = os.path.join(OUTPUT_DIR, "aln_merged",  "{sample}.bam.bai"),
-        bamFile = os.path.join(OUTPUT_DIR,  "aln_merged", "{sample}.bam"),
-        #bamIndex = os.path.join(MAPPED_READS_DIR,  "{sample}.bam.bai"),
-        #bamFile = os.path.join(MAPPED_READS_DIR,  "{sample}.bam")
+        bamIndex = os.path.join(MAPPED_READS_DIR, "{sample}", "{sample}.bam.bai"),
+        bamFile = os.path.join(MAPPED_READS_DIR, "{sample}", "{sample}.bam")
     output:
         # os.path.join(INDELS_DIR, "{sample}", "{sample}.indelScores.bigwig"),
         # os.path.join(INDELS_DIR, "{sample}", "{sample}.deletionScores.bigwig"),
