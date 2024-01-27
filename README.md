@@ -24,7 +24,6 @@ both DNA and RNA samples.
 The pipeline consists of the following steps:
 - Quality control (fastqc/multiqc) and improvement (TrimGalore!) of raw reads 
 - Mapping the reads to the genome of interest (BBMap)
-- Re-alignment of reads with insertions/deletions (GATK)
 - Extracting statistics about the detected insertions and deletions
 (various R libraries including GenomicAlignments and RSamtools)
 - Reporting of the editing outcomes in interactive reports organized into a 
@@ -53,46 +52,20 @@ You can find below some example screenshots from the HTML reports:
 > git clone https://github.com/BIMSBbioinfo/crispr_DART.git
 ```
 
-2. Install R/Bioconductor packages
+2. Create a guix profile with dependencies
 
 ```
-> if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
+> mkdir -p $HOME/guix-profiles/crispr_dart
+> guix package --manifest=guix.scm --profile=$HOME/guix-profiles/crispr_dart
 
-> BiocManager::install(c('data.table', 'yaml', 'ggplot2', 'knitr', 'ggrepel', 'pbapply', 'DT', 
-'Biostrings', 'GenomicAlignments', 'rtracklayer', 'GenomicRanges', 'Rsamtools', 'reshape2', 'GenomeInfoDb',
-'fastseg', 'gtools', 'IRanges', 'rmarkdown'))
+# activate env
+> source ~/guix-profiles/crispr_dart/etc/profile
 ```
 
-3. Use [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) to install the remaining dependencies
-
-- Create an isolated Conda environment with dependencies
+3. Test the installation on sample data
 
 ```
-> conda create -n crispr_dart --file requirements.txt
-```
-
-In addition, for the indel re-alignment step, GenomeAnalysisToolKit.jar file for the GATK version 3.8.0 is required. 
-The GenomeAnalysisToolKit.jar file needs to be downloaded from 
-https://software.broadinstitute.org/gatk/download/archive and stored somewhere that is accessible to the pipeline (e.g. ~/tools/)
-
-- Activate the environment
-
-```
-> source activate crispr_dart
-```
-
-4. Test the installation
-
-The pipeline can be simply tested by running the bash script `test.sh`. 
-
-The test script uses the necessary input files available in the `sample_data` folder 
-and runs the pipeline. If this test runs to completion, you should be ready to analyse your own
-data. 
-
-
-```
-> bash ./test.sh
+> snakemake -s snakefile.py --configfile sample_data/settings.yaml --cores 4 --printshellcmds
 ```
 
 # How to run the pipeline 
@@ -124,17 +97,14 @@ The `sample_data/reads` folder contains sample read files (fastq.gz files from I
 Once the `settings.yaml` file is configured with paths to all the other required files, the pipeline can simply be run using the bash script `run.sh` requesting 2 cpus. 
 
 ```
-> bash run.sh */path/to/settings.yaml* 2  
+> snakemake -s snakefile.py --configfile */path/to/settings.yaml* --cores 4 --printshellcmds
 ```
 
 If you would like to do a dry-run, meaning that the list of jobs are created but not executed, you can do 
 
-
 ```
-> bash run.sh */path/to/settings.yaml* 2 --dry
+> snakemake -s snakefile.py --configfile */path/to/settings.yaml* --cores 4 --dryrun --printshellcmds
 ```
-
-Any additional arguments to `run.sh` after the argument for the number of cpus are passed as arguments to `snakemake`. 
 
 # How to cite
 
