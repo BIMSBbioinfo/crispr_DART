@@ -8,12 +8,7 @@ source-dir: '.'
 nodeN: 4
 
 tools:
-  Rscript: /usr/bin/Rscript
-  java:
-    path: ~/.conda/envs/test_dart/bin/java
-    mem: "-Xmx8G"
-    threads: "-XX:ParallelGCThreads=2"
-  gatk: ~/tools/GenomeAnalysisTK.jar
+  Rscript: Rscript
   bbmap:
     memory: "-Xmx20G"
     options: "threads=2" # See bbmap.sh --help for all options 
