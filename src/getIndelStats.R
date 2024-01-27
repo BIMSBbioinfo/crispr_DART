@@ -34,7 +34,6 @@ tech <- args[5] #the sequencing platform (illumina or pacbio)
 
 outDir <- file.path(outDir, sampleName)
 cat("Running getIndelStats with arguments:",args,"\n")
-#print bedgraph file of deletion ratios per base
 
 #get the actual sequences that are inserted in alignments
 #' @param aln GAlignments object to extract inserted sequences
@@ -79,7 +78,8 @@ getIndelReads <- function(aln) {
   end(indelReads[which(names(indelReads) == 'I')]) <- start(indelReads[which(names(indelReads) == 'I')])
 
   #get seqnames fields
-  indelReads <- cbind(as.data.table(indelReads), as.data.table(mcols(indelReads)))
+  indelReads <- cbind(as.data.table(IRanges::ranges(indelReads)), 
+                      as.data.table(mcols(indelReads)))
   indelReads <- merge(indelReads,
                   data.table("seqnames" = as.data.table(seqnames(aln))$value,
                              "name" = mcols(aln)$qname),
