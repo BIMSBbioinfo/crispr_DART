@@ -35,7 +35,7 @@ website. (rmarkdown::render_site)
 ## Example HTML report output
 
 The HTML reports produced by the pipeline are automatically organised as a website. 
-Example report website can be browsed [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/reports/index.html): 
+Example report website can be browsed [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/crispr_dart/reports/index.html)
 
 ## Example screenshots from the reports
 
