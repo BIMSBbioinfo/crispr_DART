@@ -52,14 +52,10 @@ You can find below some example screenshots from the HTML reports:
 > git clone https://github.com/BIMSBbioinfo/crispr_DART.git
 ```
 
-2. Create a guix profile with dependencies
+2. Enter a guix profile with dependencies
 
 ```
-> mkdir -p $HOME/guix-profiles/crispr_dart
-> guix package --manifest=guix.scm --profile=$HOME/guix-profiles/crispr_dart
-
-# activate env
-> source ~/guix-profiles/crispr_dart/etc/profile
+> guix shell --manifest=manifest.scm
 ```
 
 3. Test the installation on sample data
